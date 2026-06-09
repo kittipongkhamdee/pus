@@ -1,0 +1,418 @@
+<!DOCTYPE html>
+<html lang="th">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <meta name="theme-color" content="#1e1b4b">
+  <title>ระบบสำรวจครุภัณฑ์โรงเรียน</title>
+  <link rel="stylesheet" href="style.css">
+  <!-- Chart.js -->
+  <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
+  <!-- SheetJS (Excel export) -->
+  <script src="https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js"></script>
+</head>
+<body>
+
+<!-- ============================================================
+     LOGIN PAGE
+     ============================================================ -->
+<div id="page-login" class="page">
+  <div class="login-card">
+    <div class="login-logo">
+      <div class="logo-big">🏫</div>
+      <h1>ระบบสำรวจครุภัณฑ์โรงเรียน</h1>
+      <p>กรุณาเข้าสู่ระบบเพื่อดำเนินการต่อ</p>
+    </div>
+    <form id="form-login">
+      <div class="form-group mb-4">
+        <label class="form-label">อีเมล</label>
+        <input id="input-email" type="email" class="form-input" placeholder="กรอกอีเมล" required>
+      </div>
+      <div class="form-group mb-4">
+        <label class="form-label">รหัสผ่าน</label>
+        <input id="input-password" type="password" class="form-input" placeholder="กรอกรหัสผ่าน" required>
+      </div>
+      <button type="submit" class="btn btn-primary" style="width:100%; justify-content:center; padding:12px;">
+        เข้าสู่ระบบ
+      </button>
+    </form>
+  </div>
+</div>
+
+<!-- ============================================================
+     MAIN APP
+     ============================================================ -->
+<div id="app" class="hidden">
+
+  <!-- SIDEBAR -->
+  <aside class="sidebar">
+    <div class="sidebar-logo">
+      <span class="logo-icon">🏫</span>
+      <span>ครุภัณฑ์โรงเรียน</span>
+    </div>
+    <nav class="sidebar-nav">
+      <div class="nav-item active" data-nav="dashboard">
+        <span class="nav-icon">📊</span> แดชบอร์ด
+      </div>
+      <div class="nav-item" data-nav="assets">
+        <span class="nav-icon">📦</span> ครุภัณฑ์ทั้งหมด
+      </div>
+      <div class="nav-item" data-nav="rooms">
+        <span class="nav-icon">🚪</span> ห้อง
+      </div>
+      <div class="nav-item" data-nav="report">
+        <span class="nav-icon">📋</span> รายงาน
+      </div>
+    </nav>
+    <div class="sidebar-user">
+      <div class="user-name" id="user-name">ผู้ใช้</div>
+      <div class="user-role" id="user-role">—</div>
+      <button class="btn-logout" id="btn-logout">ออกจากระบบ</button>
+    </div>
+  </aside>
+
+  <!-- MAIN CONTENT -->
+  <main class="main-content">
+
+    <!-- ===================== DASHBOARD ===================== -->
+    <div id="page-dashboard" class="page">
+      <div class="page-header">
+        <h1 class="page-title">📊 แดชบอร์ด</h1>
+      </div>
+
+      <div class="stat-grid">
+        <div class="stat-card">
+          <div class="stat-label">จำนวนห้อง</div>
+          <div class="stat-value" id="dash-rooms">—</div>
+        </div>
+        <div class="stat-card">
+          <div class="stat-label">รายการครุภัณฑ์</div>
+          <div class="stat-value" id="dash-items">—</div>
+        </div>
+        <div class="stat-card">
+          <div class="stat-label">จำนวนชิ้นรวม</div>
+          <div class="stat-value" id="dash-qty">—</div>
+        </div>
+        <div class="stat-card">
+          <div class="stat-label">มูลค่ารวม</div>
+          <div class="stat-value" id="dash-value" style="font-size:20px;">—</div>
+        </div>
+        <div class="stat-card good">
+          <div class="stat-label">✅ ใช้งานได้</div>
+          <div class="stat-value" id="dash-good">—</div>
+        </div>
+        <div class="stat-card repair">
+          <div class="stat-label">⚠️ ต้องซ่อม</div>
+          <div class="stat-value" id="dash-repair">—</div>
+        </div>
+        <div class="stat-card broken">
+          <div class="stat-label">❌ ชำรุด</div>
+          <div class="stat-value" id="dash-broken">—</div>
+        </div>
+        <div class="stat-card">
+          <div class="stat-label">🔍 ยังไม่สำรวจ</div>
+          <div class="stat-value" id="dash-unsurveyed">—</div>
+        </div>
+      </div>
+
+      <div class="chart-grid">
+        <div class="chart-card">
+          <h3>สภาพครุภัณฑ์</h3>
+          <canvas id="chart-condition"></canvas>
+        </div>
+        <div class="chart-card">
+          <h3>ครุภัณฑ์ตามประเภท</h3>
+          <canvas id="chart-category"></canvas>
+        </div>
+      </div>
+    </div>
+
+    <!-- ===================== ASSETS ===================== -->
+    <div id="page-assets" class="page hidden">
+      <div class="page-header">
+        <h1 class="page-title">📦 ครุภัณฑ์ทั้งหมด</h1>
+        <div class="flex gap-2">
+          <div class="export-bar">
+            <button id="btn-export-excel" class="btn btn-outline" style="font-size:13px;">📥 Excel</button>
+            <button id="btn-export-csv"   class="btn btn-outline" style="font-size:13px;">📥 CSV</button>
+            <button id="btn-export-json"  class="btn btn-outline" style="font-size:13px;">📥 JSON</button>
+            <button id="btn-export-pdf"   class="btn btn-outline" style="font-size:13px;">🖨️ PDF</button>
+          </div>
+          <button id="btn-add-asset" class="btn btn-primary staff-only">+ เพิ่มครุภัณฑ์</button>
+        </div>
+      </div>
+
+      <div class="table-card">
+        <div class="table-toolbar">
+          <input id="filter-search"    type="text"    class="filter-input"  placeholder="🔍 ค้นหาชื่อครุภัณฑ์...">
+          <select id="filter-room"     class="filter-select select-room">
+            <option value="">ทุกห้อง</option>
+          </select>
+          <select id="filter-category" class="filter-select select-category">
+            <option value="">ทุกประเภท</option>
+          </select>
+          <select id="filter-condition" class="filter-select">
+            <option value="">ทุกสภาพ</option>
+            <option value="ใช้งานได้">ใช้งานได้</option>
+            <option value="ต้องซ่อม">ต้องซ่อม</option>
+            <option value="ชำรุด">ชำรุด</option>
+          </select>
+        </div>
+        <div style="overflow-x:auto;">
+          <table>
+            <thead>
+              <tr>
+                <th>ชื่อครุภัณฑ์</th>
+                <th>เลขครุภัณฑ์</th>
+                <th>ห้อง</th>
+                <th>ประเภท</th>
+                <th class="text-right">จำนวน</th>
+                <th class="text-right">มูลค่ารวม</th>
+                <th>สภาพ</th>
+                <th>จัดการ</th>
+              </tr>
+            </thead>
+            <tbody id="assets-tbody">
+              <tr><td colspan="8" class="text-center" style="padding:40px; color:#94a3b8;">กำลังโหลด...</td></tr>
+            </tbody>
+          </table>
+        </div>
+      </div>
+    </div>
+
+    <!-- ===================== ROOMS ===================== -->
+    <div id="page-rooms" class="page hidden">
+      <div class="page-header">
+        <h1 class="page-title">🚪 ห้องทั้งหมด</h1>
+        <button id="btn-add-room" class="btn btn-primary staff-only"
+          onclick="document.getElementById('modal-room').classList.remove('hidden')">
+          + เพิ่มห้อง
+        </button>
+      </div>
+      <div class="table-card">
+        <div style="overflow-x:auto;">
+          <table>
+            <thead>
+              <tr>
+                <th>รหัสห้อง</th>
+                <th>ชื่อห้อง</th>
+                <th>อาคาร</th>
+                <th>ชั้น</th>
+                <th>รายละเอียด</th>
+                <th>จัดการ</th>
+              </tr>
+            </thead>
+            <tbody id="rooms-tbody"></tbody>
+          </table>
+        </div>
+      </div>
+    </div>
+
+    <!-- ===================== REPORT ===================== -->
+    <div id="page-report" class="page hidden">
+      <div class="page-header">
+        <h1 class="page-title">📋 รายงาน</h1>
+        <button class="btn btn-outline" onclick="window.print()">🖨️ พิมพ์รายงาน</button>
+      </div>
+
+      <div class="table-card mb-4">
+        <div style="padding:14px 18px; font-weight:600; font-size:15px; color:#1e1b4b; border-bottom:1px solid #f1f5f9;">
+          สรุปตามห้อง
+        </div>
+        <div style="overflow-x:auto;">
+          <table>
+            <thead>
+              <tr>
+                <th>ห้อง</th>
+                <th class="text-right">รายการ</th>
+                <th class="text-right">จำนวนชิ้น</th>
+                <th class="text-right">มูลค่ารวม</th>
+                <th>สภาพ</th>
+              </tr>
+            </thead>
+            <tbody id="report-room-tbody"></tbody>
+          </table>
+        </div>
+      </div>
+
+      <div class="table-card">
+        <div style="padding:14px 18px; font-weight:600; font-size:15px; color:#1e1b4b; border-bottom:1px solid #f1f5f9;">
+          สรุปตามประเภท
+        </div>
+        <div style="overflow-x:auto;">
+          <table>
+            <thead>
+              <tr>
+                <th>ประเภทครุภัณฑ์</th>
+                <th class="text-right">รายการ</th>
+                <th class="text-right">จำนวนชิ้น</th>
+                <th class="text-right">มูลค่ารวม</th>
+              </tr>
+            </thead>
+            <tbody id="report-cat-tbody"></tbody>
+          </table>
+        </div>
+      </div>
+    </div>
+
+  </main>
+</div><!-- /#app -->
+
+<!-- ============================================================
+     MODAL: เพิ่ม/แก้ไขครุภัณฑ์
+     ============================================================ -->
+<div id="modal-asset" class="modal-overlay hidden">
+  <div class="modal-box">
+    <div class="modal-header">
+      <h2 class="modal-title" id="asset-form-title">เพิ่มครุภัณฑ์ใหม่</h2>
+      <button class="modal-close" data-close-modal="modal-asset">✕</button>
+    </div>
+    <div class="modal-body">
+      <form id="form-asset">
+        <div class="form-grid">
+
+          <div class="form-group col-span-2">
+            <label class="form-label">ชื่อครุภัณฑ์ *</label>
+            <input id="asset-name" type="text" class="form-input" placeholder="เช่น โต๊ะนักเรียน" required>
+          </div>
+
+          <div class="form-group">
+            <label class="form-label">ห้อง</label>
+            <select id="asset-room" class="form-select select-room">
+              <option value="">-- เลือกห้อง --</option>
+            </select>
+          </div>
+
+          <div class="form-group">
+            <label class="form-label">ประเภทครุภัณฑ์</label>
+            <select id="asset-category" class="form-select select-category">
+              <option value="">-- เลือกประเภท --</option>
+            </select>
+          </div>
+
+          <div class="form-group">
+            <label class="form-label">เลขครุภัณฑ์</label>
+            <input id="asset-number" type="text" class="form-input" placeholder="เช่น 001/2567">
+          </div>
+
+          <div class="form-group">
+            <label class="form-label">สภาพการใช้งาน *</label>
+            <select id="asset-condition" class="form-select" required>
+              <option value="ใช้งานได้">✅ ใช้งานได้</option>
+              <option value="ต้องซ่อม">⚠️ ต้องซ่อม</option>
+              <option value="ชำรุด">❌ ชำรุด</option>
+            </select>
+          </div>
+
+          <div class="form-group">
+            <label class="form-label">จำนวน *</label>
+            <input id="asset-qty" type="number" class="form-input" value="1" min="1" required>
+          </div>
+
+          <div class="form-group">
+            <label class="form-label">ราคาต่อหน่วย (บาท)</label>
+            <input id="asset-unit-price" type="number" class="form-input" value="0" min="0" step="0.01">
+          </div>
+
+          <div class="form-group">
+            <label class="form-label">ปีที่ได้รับ (พ.ศ.)</label>
+            <input id="asset-year" type="number" class="form-input" placeholder="เช่น 2567">
+          </div>
+
+          <div class="form-group col-span-2">
+            <label class="form-label">ราคารวม</label>
+            <div class="total-display" id="asset-total-display">฿0.00</div>
+          </div>
+
+          <div class="form-group col-span-2">
+            <label class="form-label">รูปภาพครุภัณฑ์</label>
+            <input id="asset-image-file" type="file" accept="image/*" class="form-input" style="padding:6px;">
+            <input id="asset-image-url" type="hidden">
+            <small style="color:#94a3b8; font-size:12px; margin-top:4px;">
+              รูปจะถูกบีบอัดและอัปโหลดไปยัง Google Drive อัตโนมัติ
+            </small>
+          </div>
+
+          <div class="form-group col-span-2">
+            <label class="form-label">หมายเหตุ</label>
+            <textarea id="asset-note" class="form-textarea" placeholder="หมายเหตุเพิ่มเติม"></textarea>
+          </div>
+
+        </div><!-- /.form-grid -->
+      </form>
+    </div>
+    <div class="modal-footer">
+      <button class="btn btn-outline" data-close-modal="modal-asset">ยกเลิก</button>
+      <button type="submit" form="form-asset" class="btn btn-primary">💾 บันทึก</button>
+    </div>
+  </div>
+</div>
+
+<!-- ============================================================
+     MODAL: เพิ่มห้อง
+     ============================================================ -->
+<div id="modal-room" class="modal-overlay hidden">
+  <div class="modal-box" style="max-width:440px;">
+    <div class="modal-header">
+      <h2 class="modal-title">เพิ่มห้องใหม่</h2>
+      <button class="modal-close" data-close-modal="modal-room">✕</button>
+    </div>
+    <div class="modal-body">
+      <form id="form-room">
+        <div class="form-grid">
+          <div class="form-group">
+            <label class="form-label">รหัสห้อง *</label>
+            <input id="room-code" type="text" class="form-input" placeholder="เช่น A101" required>
+          </div>
+          <div class="form-group">
+            <label class="form-label">ชั้น</label>
+            <input id="room-floor" type="text" class="form-input" placeholder="เช่น 1">
+          </div>
+          <div class="form-group col-span-2">
+            <label class="form-label">ชื่อห้อง *</label>
+            <input id="room-name-input" type="text" class="form-input" placeholder="เช่น ห้องเรียน ป.1/1" required>
+          </div>
+          <div class="form-group col-span-2">
+            <label class="form-label">อาคาร</label>
+            <input id="room-building" type="text" class="form-input" placeholder="เช่น อาคาร A">
+          </div>
+          <div class="form-group col-span-2">
+            <label class="form-label">รายละเอียด</label>
+            <textarea id="room-desc" class="form-textarea" placeholder="รายละเอียดห้อง"></textarea>
+          </div>
+        </div>
+      </form>
+    </div>
+    <div class="modal-footer">
+      <button class="btn btn-outline" data-close-modal="modal-room">ยกเลิก</button>
+      <button type="submit" form="form-room" class="btn btn-primary">💾 บันทึก</button>
+    </div>
+  </div>
+</div>
+
+<!-- TOAST CONTAINER -->
+<div id="toast-container"></div>
+
+<!-- ============================================================
+     BOOTSTRAP: show login or app based on auth state
+     ============================================================ -->
+<script type="module">
+  import { auth } from './supabase.js';
+
+  // แสดง login ก่อน
+  document.getElementById('page-login').classList.remove('hidden');
+
+  auth.onAuthChange((_event, session) => {
+    if (session) {
+      document.getElementById('page-login').classList.add('hidden');
+      document.getElementById('app').classList.remove('hidden');
+    } else {
+      document.getElementById('page-login').classList.remove('hidden');
+      document.getElementById('app').classList.add('hidden');
+    }
+  });
+</script>
+<script type="module" src="app.js"></script>
+
+</body>
+</html>
